@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #2a1a22;
+  --color-mut: #6b5560;
+  --color-bg: #fbf6f7;
+  --color-line: #eadfe3;
+  --color-acc: #b0245a;
+  --color-acc-soft: #f8e3ec;
+  --color-ok: #0f6b4f;
+  --color-ok-soft: #ddf1e8;
+  --color-warn: #8a5200;
+  --color-warn-soft: #fcebcb;
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.btn {
+  @apply inline-flex min-h-11 items-center justify-center rounded-[10px] border border-line bg-white px-4 font-semibold text-ink hover:bg-acc-soft disabled:cursor-not-allowed disabled:opacity-50;
+}
+.btn-p {
+  @apply border-acc bg-acc text-white hover:bg-acc/90;
+}
+.field {
+  @apply min-h-11 w-full rounded-[10px] border border-[#cdbfc5] bg-white px-3 text-ink;
+}
+.card {
+  @apply flex min-w-0 flex-col gap-3.5 rounded-[14px] border border-line bg-white p-4 sm:p-[18px];
+}
+.pill {
+  @apply inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold;
+}

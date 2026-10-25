@@ -1,0 +1,155 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { emptyState, normalizeCode, normalizeCustomer, saveProduct } from "./orders";
+import type { Store } from "./store";
+import type { Live, Order, OrderInput, Product, Result, State } from "./types";
+
+type OrderRow = {
+  id: string;
+  number: number;
+  live_id: string | null;
+  code: string;
+  product_name: string;
+  size: string;
+  customer: string;
+  qty: number;
+  unit_price: number | string;
+  status: "pendiente" | "cancelado";
+  created_at: string;
+};
+
+type ProductRow = {
+  id: string;
+  code: string;
+  name: string;
+  price: number | string;
+  product_sizes: { size: string; stock: number }[];
+};
+
+type LiveRow = { id: string; started_at: string; ended_at: string | null };
+
+const ok: Result<void> = { ok: true, value: undefined };
+const fail = (error: string): Result<never> => ({ ok: false, error });
+
+const toOrder = (r: OrderRow): Order => ({
+  id: r.id,
+  number: r.number,
+  liveId: r.live_id,
+  code: r.code,
+  productName: r.product_name,
+  size: r.size,
+  customer: r.customer,
+  qty: r.qty,
+  unitPrice: Number(r.unit_price),
+  status: r.status,
+  createdAt: r.created_at,
+});
+
+const toProduct = (r: ProductRow): Product => ({
+  id: r.id,
+  code: r.code,
+  name: r.name,
+  price: Number(r.price),
+  sizes: [...r.product_sizes].sort((a, b) => a.size.localeCompare(b.size)),
+});
+
+const toLive = (r: LiveRow): Live => ({ id: r.id, startedAt: r.started_at, endedAt: r.ended_at });
+
+export function createSupabaseClient(url: string, anonKey: string): SupabaseClient {
+  return createClient(url, anonKey);
+}
+
+/** Datos compartidos entre dispositivos. Requiere haber ejecutado supabase/schema.sql. */
+export function createSupabaseStore(db: SupabaseClient): Store {
+  async function load(): Promise<State> {
+    const [products, orders, lives] = await Promise.all([
+      db.from("products").select("id, code, name, price, product_sizes(size, stock)").order("code"),
+      db.from("orders").select("*").order("number", { ascending: false }).limit(500),
+      db.from("lives").select("*").order("started_at", { ascending: false }).limit(1),
+    ]);
+    const error = products.error ?? orders.error ?? lives.error;
+    if (error) throw new Error(error.message);
+
+    const orderRows = (orders.data ?? []) as OrderRow[];
+    return {
+      ...emptyState(),
+      products: ((products.data ?? []) as ProductRow[]).map(toProduct),
+      orders: orderRows.map(toOrder),
+      live: lives.data?.[0] ? toLive(lives.data[0] as LiveRow) : null,
+      nextOrderNumber: (orderRows[0]?.number ?? 0) + 1,
+    };
+  }
+
+  const run = async (op: PromiseLike<{ error: { message: string } | null }>): Promise<Result<void>> => {
+    const { error } = await op;
+    return error ? fail(error.message) : ok;
+  };
+
+  return {
+    kind: "supabase",
+    load,
+    subscribe(onChange) {
+      const channel = db.channel("closetdemay-cambios");
+      for (const table of ["products", "product_sizes", "lives", "orders"]) {
+        channel.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
+      }
+      channel.subscribe();
+      return () => {
+        void db.removeChannel(channel);
+      };
+    },
+    async startLive() {
+      const open = await db.from("lives").select("id").is("ended_at", null).limit(1);
+      if (open.error) return fail(open.error.message);
+      if (open.data.length > 0) return ok;
+      return run(db.from("lives").insert({}));
+    },
+    async endLive() {
+      return run(db.from("lives").update({ ended_at: new Date().toISOString() }).is("ended_at", null));
+    },
+    async placeOrder(input: OrderInput) {
+      const customer = normalizeCustomer(input.customer);
+      if (!customer) return fail("Falta el usuario de TikTok.");
+      if (!Number.isInteger(input.qty) || input.qty < 1) return fail("La cantidad debe ser 1 o más.");
+      const { data, error } = await db.rpc("place_order", {
+        p_code: normalizeCode(input.code),
+        p_size: input.size,
+        p_customer: customer,
+        p_qty: input.qty,
+      });
+      if (error) return fail(error.message);
+      return { ok: true, value: toOrder(data as OrderRow) };
+    },
+    async cancelOrder(orderId) {
+      return run(db.rpc("cancel_order", { p_id: orderId }));
+    },
+    async saveProduct(input) {
+      // Reusa las mismas validaciones que el modo local.
+      const checked = saveProduct(await load(), input, crypto.randomUUID());
+      if (!checked.ok) return checked;
+      const saved = checked.value.products.find((p) => p.code === normalizeCode(input.code))!;
+
+      const up = await db
+        .from("products")
+        .upsert({ id: saved.id, code: saved.code, name: saved.name, price: saved.price });
+      if (up.error) return fail(up.error.message);
+
+      const keep = saved.sizes.map((s) => s.size);
+      const drop = await db
+        .from("product_sizes")
+        .delete()
+        .eq("product_id", saved.id)
+        .not("size", "in", `(${keep.map((s) => `"${s}"`).join(",")})`);
+      if (drop.error) return fail(drop.error.message);
+
+      return run(
+        db.from("product_sizes").upsert(saved.sizes.map((s) => ({ product_id: saved.id, ...s }))),
+      );
+    },
+    async deleteProduct(productId) {
+      return run(db.from("products").delete().eq("id", productId));
+    },
+    async adjustStock(productId, size, delta) {
+      return run(db.rpc("adjust_stock", { p_product: productId, p_size: size, p_delta: delta }));
+    },
+  };
+}
