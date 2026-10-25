@@ -74,11 +74,17 @@ alter table orders enable row level security;
 alter table customers enable row level security;
 alter table settings enable row level security;
 
+drop policy if exists "solo autenticadas" on products;
 create policy "solo autenticadas" on products for all to authenticated using (true) with check (true);
+drop policy if exists "solo autenticadas" on product_sizes;
 create policy "solo autenticadas" on product_sizes for all to authenticated using (true) with check (true);
+drop policy if exists "solo autenticadas" on lives;
 create policy "solo autenticadas" on lives for all to authenticated using (true) with check (true);
+drop policy if exists "solo autenticadas" on orders;
 create policy "solo autenticadas" on orders for all to authenticated using (true) with check (true);
+drop policy if exists "solo autenticadas" on customers;
 create policy "solo autenticadas" on customers for all to authenticated using (true) with check (true);
+drop policy if exists "solo autenticadas" on settings;
 create policy "solo autenticadas" on settings for all to authenticated using (true) with check (true);
 
 -- Registrar un pedido descuenta el stock de forma atómica y aplica el precio por mayor.
@@ -261,13 +267,49 @@ grant execute on function public_catalog() to anon, authenticated;
 -- Fotos de las prendas: bucket público; solo personas con sesión pueden subir o borrar.
 insert into storage.buckets (id, name, public) values ('productos', 'productos', true)
   on conflict (id) do nothing;
+drop policy if exists "fotos: lectura publica" on storage.objects;
 create policy "fotos: lectura publica" on storage.objects
   for select using (bucket_id = 'productos');
+drop policy if exists "fotos: subir con sesion" on storage.objects;
 create policy "fotos: subir con sesion" on storage.objects
   for insert to authenticated with check (bucket_id = 'productos');
+drop policy if exists "fotos: cambiar con sesion" on storage.objects;
 create policy "fotos: cambiar con sesion" on storage.objects
   for update to authenticated using (bucket_id = 'productos');
+drop policy if exists "fotos: borrar con sesion" on storage.objects;
 create policy "fotos: borrar con sesion" on storage.objects
   for delete to authenticated using (bucket_id = 'productos');
 
-alter publication supabase_realtime add table products, product_sizes, lives, orders, customers, settings;
+do $$
+begin
+  alter publication supabase_realtime add table products;
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table product_sizes;
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table lives;
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table orders;
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table customers;
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table settings;
+exception when duplicate_object then null;
+end $$;
+
+-- Que la API vea de inmediato las funciones y columnas nuevas.
+notify pgrst, 'reload schema';

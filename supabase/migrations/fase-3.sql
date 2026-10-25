@@ -1,5 +1,6 @@
 -- El Closet de May · Fase 3 (clientas, mayoristas, reportes y tienda pública)
--- Solo si ya ejecutaste schema.sql y fase-2.sql. Pégalo en Supabase > SQL Editor.
+-- Se puede ejecutar más de una vez sin problema. Úsalo después de fase-2.sql.
+-- Pégalo en Supabase > SQL Editor.
 -- Si instalas desde cero, usa schema.sql, que ya incluye todo esto.
 
 alter table products add column if not exists image_url text not null default '';
@@ -102,11 +103,18 @@ grant execute on function public_catalog() to anon, authenticated;
 -- Fotos de las prendas: bucket público; solo personas con sesión pueden subir o borrar.
 insert into storage.buckets (id, name, public) values ('productos', 'productos', true)
   on conflict (id) do nothing;
+drop policy if exists "fotos: lectura publica" on storage.objects;
 create policy "fotos: lectura publica" on storage.objects
   for select using (bucket_id = 'productos');
+drop policy if exists "fotos: subir con sesion" on storage.objects;
 create policy "fotos: subir con sesion" on storage.objects
   for insert to authenticated with check (bucket_id = 'productos');
+drop policy if exists "fotos: cambiar con sesion" on storage.objects;
 create policy "fotos: cambiar con sesion" on storage.objects
   for update to authenticated using (bucket_id = 'productos');
+drop policy if exists "fotos: borrar con sesion" on storage.objects;
 create policy "fotos: borrar con sesion" on storage.objects
   for delete to authenticated using (bucket_id = 'productos');
+
+-- Que la API vea de inmediato las funciones y columnas nuevas.
+notify pgrst, 'reload schema';

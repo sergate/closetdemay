@@ -1,5 +1,6 @@
 -- El Closet de May · Fase 2 (cobros, estados y despachos)
--- Solo si ya ejecutaste schema.sql de la Fase 1. Pégalo en Supabase > SQL Editor.
+-- Se puede ejecutar más de una vez sin problema. Úsalo si tu base viene de la Fase 1.
+-- Pégalo en Supabase > SQL Editor.
 -- Si instalas desde cero, usa schema.sql, que ya incluye todo esto.
 
 alter table orders drop constraint if exists orders_status_check;
@@ -30,7 +31,9 @@ insert into settings (id, payment_instructions)
 
 alter table customers enable row level security;
 alter table settings enable row level security;
+drop policy if exists "solo autenticadas" on customers;
 create policy "solo autenticadas" on customers for all to authenticated using (true) with check (true);
+drop policy if exists "solo autenticadas" on settings;
 create policy "solo autenticadas" on settings for all to authenticated using (true) with check (true);
 
 create or replace function cancel_order(p_id uuid)
@@ -115,4 +118,13 @@ begin
 end;
 $$;
 
-alter publication supabase_realtime add table customers, settings;
+do $$
+begin
+  alter publication supabase_realtime add table customers;
+exception when duplicate_object then null;
+end $$;
+do $$
+begin
+  alter publication supabase_realtime add table settings;
+exception when duplicate_object then null;
+end $$;
