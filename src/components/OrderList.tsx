@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { money } from "@/lib/format";
-import { liveOrders, orderTotal, sumOrders } from "@/lib/orders";
+import { canCancel, liveOrders, orderTotal, sumOrders } from "@/lib/orders";
+import { STATUS_LABEL } from "@/lib/types";
+import { StatusPill } from "./StatusPill";
 import { useApp } from "./StoreProvider";
 
 export function OrderList() {
@@ -30,6 +32,7 @@ export function OrderList() {
                   <th className="border-b border-line p-2">Clienta</th>
                   <th className="border-b border-line p-2">Prenda</th>
                   <th className="border-b border-line p-2">Total</th>
+                  <th className="border-b border-line p-2">Estado</th>
                   <th className="border-b border-line p-2"><span className="sr-only">Acciones</span></th>
                 </tr>
               </thead>
@@ -40,8 +43,11 @@ export function OrderList() {
                     <td className="border-b border-line p-2">{o.customer}</td>
                     <td className="border-b border-line p-2">{o.code} · {o.size} × {o.qty}</td>
                     <td className="border-b border-line p-2">{money(orderTotal(o))}</td>
+                    <td className="border-b border-line p-2"><StatusPill status={o.status} /></td>
                     <td className="border-b border-line p-2 text-right">
-                      <button className="btn" onClick={() => cancel(o.id, `#${o.number}`)}>Cancelar</button>
+                      {canCancel(o) && (
+                        <button className="btn" onClick={() => cancel(o.id, `#${o.number}`)}>Cancelar</button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -53,9 +59,11 @@ export function OrderList() {
               <li key={o.id} className="flex items-center justify-between gap-2 rounded-xl border border-line p-3">
                 <div className="min-w-0">
                   <b className="block truncate">#{String(o.number).padStart(3, "0")} · {o.customer}</b>
-                  <small className="text-xs text-mut">{o.code} · {o.size} × {o.qty} · {money(orderTotal(o))}</small>
+                  <small className="text-xs text-mut">{o.code} · {o.size} × {o.qty} · {money(orderTotal(o))} · {STATUS_LABEL[o.status]}</small>
                 </div>
-                <button className="btn shrink-0" onClick={() => cancel(o.id, `#${o.number}`)}>Cancelar</button>
+                {canCancel(o) && (
+                  <button className="btn shrink-0" onClick={() => cancel(o.id, `#${o.number}`)}>Cancelar</button>
+                )}
               </li>
             ))}
           </ul>

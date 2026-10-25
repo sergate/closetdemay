@@ -1,7 +1,19 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { emptyState, normalizeCode, normalizeCustomer, saveProduct } from "./orders";
 import type { Store } from "./store";
-import type { Live, Order, OrderInput, Product, Result, State } from "./types";
+import { saveCustomer } from "./fulfillment";
+import type {
+  Courier,
+  Customer,
+  Live,
+  Order,
+  OrderInput,
+  PaymentMethod,
+  Product,
+  Result,
+  State,
+  Transition,
+} from "./types";
 
 type OrderRow = {
   id: string;
@@ -13,9 +25,16 @@ type OrderRow = {
   customer: string;
   qty: number;
   unit_price: number | string;
-  status: "pendiente" | "cancelado";
+  status: Order["status"];
   created_at: string;
+  payment_method: PaymentMethod | null;
+  paid_at: string | null;
+  courier: Courier | null;
+  tracking_code: string;
+  shipped_at: string | null;
 };
+
+type CustomerRow = { handle: string; name: string; phone: string; city: string; address: string };
 
 type ProductRow = {
   id: string;
@@ -42,6 +61,11 @@ const toOrder = (r: OrderRow): Order => ({
   unitPrice: Number(r.unit_price),
   status: r.status,
   createdAt: r.created_at,
+  paymentMethod: r.payment_method,
+  paidAt: r.paid_at,
+  courier: r.courier,
+  trackingCode: r.tracking_code,
+  shippedAt: r.shipped_at,
 });
 
 const toProduct = (r: ProductRow): Product => ({
@@ -61,17 +85,24 @@ export function createSupabaseClient(url: string, anonKey: string): SupabaseClie
 /** Datos compartidos entre dispositivos. Requiere haber ejecutado supabase/schema.sql. */
 export function createSupabaseStore(db: SupabaseClient): Store {
   async function load(): Promise<State> {
-    const [products, orders, lives] = await Promise.all([
+    const [products, orders, lives, customers, settings] = await Promise.all([
       db.from("products").select("id, code, name, price, product_sizes(size, stock)").order("code"),
       db.from("orders").select("*").order("number", { ascending: false }).limit(500),
       db.from("lives").select("*").order("started_at", { ascending: false }).limit(1),
+      db.from("customers").select("*").order("handle"),
+      db.from("settings").select("payment_instructions").eq("id", 1).maybeSingle(),
     ]);
-    const error = products.error ?? orders.error ?? lives.error;
+    const error = products.error ?? orders.error ?? lives.error ?? customers.error ?? settings.error;
     if (error) throw new Error(error.message);
 
     const orderRows = (orders.data ?? []) as OrderRow[];
+    const base = emptyState();
     return {
-      ...emptyState(),
+      ...base,
+      customers: ((customers.data ?? []) as CustomerRow[]).map((c): Customer => ({ ...c })),
+      settings: {
+        paymentInstructions: settings.data?.payment_instructions ?? base.settings.paymentInstructions,
+      },
       products: ((products.data ?? []) as ProductRow[]).map(toProduct),
       orders: orderRows.map(toOrder),
       live: lives.data?.[0] ? toLive(lives.data[0] as LiveRow) : null,
@@ -89,7 +120,7 @@ export function createSupabaseStore(db: SupabaseClient): Store {
     load,
     subscribe(onChange) {
       const channel = db.channel("closetdemay-cambios");
-      for (const table of ["products", "product_sizes", "lives", "orders"]) {
+      for (const table of ["products", "product_sizes", "lives", "orders", "customers", "settings"]) {
         channel.on("postgres_changes", { event: "*", schema: "public", table }, onChange);
       }
       channel.subscribe();
@@ -150,6 +181,27 @@ export function createSupabaseStore(db: SupabaseClient): Store {
     },
     async adjustStock(productId, size, delta) {
       return run(db.rpc("adjust_stock", { p_product: productId, p_size: size, p_delta: delta }));
+    },
+    async advanceOrders(orderIds, t: Transition) {
+      return run(
+        db.rpc("advance_orders", {
+          p_ids: orderIds,
+          p_to: t.to,
+          p_payment: t.to === "pagado" ? t.paymentMethod : null,
+          p_courier: t.to === "enviado" ? t.courier : null,
+          p_tracking: t.to === "enviado" ? t.trackingCode : "",
+        }),
+      );
+    },
+    async saveCustomer(customer) {
+      const checked = saveCustomer(emptyState(), customer);
+      if (!checked.ok) return checked;
+      return run(db.from("customers").upsert(checked.value.customers[0]));
+    },
+    async saveSettings(settings) {
+      return run(
+        db.from("settings").upsert({ id: 1, payment_instructions: settings.paymentInstructions }),
+      );
     },
   };
 }

@@ -11,6 +11,8 @@
   --color-ok-soft: #ddf1e8;
   --color-warn: #8a5200;
   --color-warn-soft: #fcebcb;
+  --color-info: #1f4e9a;
+  --color-info-soft: #dfe9fa;
   --font-sans: var(--font-jakarta), system-ui, sans-serif;
 }
 

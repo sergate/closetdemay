@@ -1,4 +1,4 @@
--- El Closet de May · Fase 1
+-- El Closet de May · esquema completo (Fases 1 y 2)
 -- Pega este archivo completo en Supabase > SQL Editor y ejecútalo una vez.
 
 create table if not exists products (
@@ -31,20 +31,46 @@ create table if not exists orders (
   customer text not null,
   qty integer not null check (qty > 0),
   unit_price numeric(10,2) not null,
-  status text not null default 'pendiente' check (status in ('pendiente', 'cancelado')),
-  created_at timestamptz not null default now()
+  status text not null default 'pendiente'
+    check (status in ('pendiente', 'pagado', 'empacado', 'enviado', 'entregado', 'cancelado')),
+  created_at timestamptz not null default now(),
+  payment_method text,
+  paid_at timestamptz,
+  courier text,
+  tracking_code text not null default '',
+  shipped_at timestamptz
 );
+
+create table if not exists customers (
+  handle text primary key,
+  name text not null default '',
+  phone text not null default '',
+  city text not null default '',
+  address text not null default ''
+);
+
+create table if not exists settings (
+  id integer primary key default 1 check (id = 1),
+  payment_instructions text not null
+);
+insert into settings (id, payment_instructions)
+  values (1, 'Puedes pagar por transferencia o Deuna. Cuando pagues, envíame el comprobante por aquí.')
+  on conflict (id) do nothing;
 
 -- Solo usuarios con sesión iniciada pueden leer y escribir.
 alter table products enable row level security;
 alter table product_sizes enable row level security;
 alter table lives enable row level security;
 alter table orders enable row level security;
+alter table customers enable row level security;
+alter table settings enable row level security;
 
 create policy "solo autenticadas" on products for all to authenticated using (true) with check (true);
 create policy "solo autenticadas" on product_sizes for all to authenticated using (true) with check (true);
 create policy "solo autenticadas" on lives for all to authenticated using (true) with check (true);
 create policy "solo autenticadas" on orders for all to authenticated using (true) with check (true);
+create policy "solo autenticadas" on customers for all to authenticated using (true) with check (true);
+create policy "solo autenticadas" on settings for all to authenticated using (true) with check (true);
 
 -- Registrar un pedido descuenta el stock de forma atómica.
 create or replace function place_order(p_code text, p_size text, p_customer text, p_qty integer)
@@ -86,7 +112,7 @@ begin
 end;
 $$;
 
--- Cancelar un pedido devuelve el stock.
+-- Cancelar un pedido devuelve el stock (no aplica si ya salió).
 create or replace function cancel_order(p_id uuid)
 returns void
 language plpgsql
@@ -101,11 +127,71 @@ begin
   if v_order.status = 'cancelado' then
     raise exception 'El pedido ya estaba cancelado.';
   end if;
+  if v_order.status in ('enviado', 'entregado') then
+    raise exception 'No se puede cancelar un pedido que ya salió.';
+  end if;
 
   update orders set status = 'cancelado' where id = p_id;
   update product_sizes set stock = stock + v_order.qty
     where size = v_order.size
       and product_id = (select id from products where code = v_order.code);
+end;
+$$;
+
+-- Mueve pedidos al siguiente estado. Todo o nada.
+create or replace function advance_orders(
+  p_ids uuid[],
+  p_to text,
+  p_payment text default null,
+  p_courier text default null,
+  p_tracking text default ''
+)
+returns void
+language plpgsql
+as $$
+declare
+  v_ids uuid[] := array(select distinct unnest(p_ids));
+  v_from text;
+  v_wrong orders;
+begin
+  if coalesce(cardinality(v_ids), 0) = 0 then
+    raise exception 'No hay pedidos seleccionados.';
+  end if;
+
+  v_from := case p_to
+    when 'pagado' then 'pendiente'
+    when 'empacado' then 'pagado'
+    when 'enviado' then 'empacado'
+    when 'entregado' then 'enviado'
+  end;
+  if v_from is null then
+    raise exception 'Estado no válido.';
+  end if;
+  if p_to = 'pagado' and coalesce(p_payment, '') = '' then
+    raise exception 'Elige cómo pagó la clienta.';
+  end if;
+  if p_to = 'enviado' and coalesce(p_courier, '') = '' then
+    raise exception 'Elige cómo se envía el pedido.';
+  end if;
+
+  perform 1 from orders where id = any(v_ids) for update;
+  if (select count(*) from orders where id = any(v_ids)) <> cardinality(v_ids) then
+    raise exception 'No existe alguno de los pedidos.';
+  end if;
+
+  select * into v_wrong from orders where id = any(v_ids) and status <> v_from limit 1;
+  if found then
+    raise exception 'El pedido #% no está en el estado correcto para este paso.', v_wrong.number;
+  end if;
+
+  update orders set
+    status = p_to,
+    payment_method = case when p_to = 'pagado' then p_payment else payment_method end,
+    paid_at = case when p_to = 'pagado' then now() else paid_at end,
+    courier = case when p_to = 'enviado' then p_courier else courier end,
+    tracking_code = case when p_to = 'enviado' then trim(coalesce(p_tracking, '')) else tracking_code end,
+    shipped_at = case when p_to = 'enviado' then now() else shipped_at end
+  where id = any(v_ids);
 end;
 $$;
 
@@ -118,4 +204,4 @@ as $$
 $$;
 
 -- Actualizaciones casi en tiempo real entre celular y escritorio.
-alter publication supabase_realtime add table products, product_sizes, lives, orders;
+alter publication supabase_realtime add table products, product_sizes, lives, orders, customers, settings;

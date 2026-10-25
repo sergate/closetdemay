@@ -6,6 +6,9 @@ import { useApp } from "./StoreProvider";
 
 const LINKS = [
   { href: "/vivo", label: "En vivo" },
+  { href: "/pedidos", label: "Pedidos" },
+  { href: "/cobros", label: "Cobros" },
+  { href: "/despachos", label: "Despachos" },
   { href: "/catalogo", label: "Catálogo" },
   { href: "/inventario", label: "Inventario" },
 ];
@@ -16,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <aside className="hidden w-60 shrink-0 flex-col gap-5 border-r border-line bg-white p-4 md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col gap-5 border-r border-line bg-white p-4 md:flex print:hidden">
         <div className="text-lg font-bold leading-tight text-acc">
           El Closet de May
           <small className="block text-xs font-medium text-mut">Panel de ventas</small>
@@ -48,7 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <header className="flex items-center justify-between border-b border-line bg-white px-4 py-3 md:hidden">
+      <header className="flex items-center justify-between border-b border-line bg-white px-4 py-3 md:hidden print:hidden">
         <span className="font-bold text-acc">El Closet de May</span>
         {store.kind === "local" && <span className="pill bg-warn-soft text-warn">Prueba</span>}
       </header>
@@ -57,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <nav
         aria-label="Secciones"
-        className="fixed inset-x-0 bottom-0 flex border-t border-line bg-white md:hidden"
+        className="fixed inset-x-0 bottom-0 flex border-t border-line bg-white md:hidden print:hidden"
       >
         {LINKS.map((l) => {
           const on = pathname.startsWith(l.href);
@@ -66,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={l.href}
               href={l.href}
               aria-current={on ? "page" : undefined}
-              className={`flex min-h-14 flex-1 items-center justify-center text-xs font-semibold ${on ? "font-bold text-acc" : "text-mut"}`}
+              className={`flex min-h-14 flex-1 items-center justify-center px-0.5 text-[11px] font-semibold ${on ? "font-bold text-acc" : "text-mut"}`}
             >
               {l.label}
             </Link>

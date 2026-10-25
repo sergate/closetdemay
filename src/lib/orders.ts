@@ -1,3 +1,4 @@
+import { DEFAULT_PAYMENT_INSTRUCTIONS } from "./types";
 import type {
   Order,
   OrderInput,
@@ -10,7 +11,38 @@ import type {
 export const LOW_STOCK_LIMIT = 3;
 
 export function emptyState(): State {
-  return { products: [], orders: [], live: null, nextOrderNumber: 1 };
+  return {
+    products: [],
+    orders: [],
+    live: null,
+    nextOrderNumber: 1,
+    customers: [],
+    settings: { paymentInstructions: DEFAULT_PAYMENT_INSTRUCTIONS },
+  };
+}
+
+/** Completa datos guardados por versiones anteriores (Fase 1). */
+type StoredState = Omit<Partial<State>, "orders"> & { orders?: Partial<Order>[] };
+
+export function migrateState(raw: StoredState): State {
+  const base = emptyState();
+  return {
+    ...base,
+    ...raw,
+    settings: { ...base.settings, ...raw.settings },
+    customers: raw.customers ?? [],
+    orders: (raw.orders ?? []).map(
+      (o) =>
+        ({
+          paymentMethod: null,
+          paidAt: null,
+          courier: null,
+          trackingCode: "",
+          shippedAt: null,
+          ...o,
+        }) as Order,
+    ),
+  };
 }
 
 export function normalizeCode(code: string): string {
@@ -69,6 +101,11 @@ export function placeOrder(
     unitPrice: product.price,
     status: "pendiente",
     createdAt: now,
+    paymentMethod: null,
+    paidAt: null,
+    courier: null,
+    trackingCode: "",
+    shippedAt: null,
   };
 
   const products = state.products.map((p) =>
@@ -100,6 +137,9 @@ export function cancelOrder(state: State, orderId: string): Result<State> {
   const order = state.orders.find((o) => o.id === orderId);
   if (!order) return { ok: false, error: "No existe ese pedido." };
   if (order.status === "cancelado") return { ok: false, error: "El pedido ya estaba cancelado." };
+  if (order.status === "enviado" || order.status === "entregado") {
+    return { ok: false, error: "No se puede cancelar un pedido que ya salió." };
+  }
 
   const products = state.products.map((p) =>
     p.code !== order.code
@@ -190,7 +230,7 @@ export function orderTotal(order: Order): number {
 
 export function liveOrders(state: State): Order[] {
   if (!state.live) return [];
-  return state.orders.filter((o) => o.liveId === state.live!.id && o.status === "pendiente");
+  return state.orders.filter((o) => o.liveId === state.live!.id && o.status !== "cancelado");
 }
 
 export function isLiveActive(state: State): boolean {
@@ -211,4 +251,8 @@ export function endLive(state: State, now: string): State {
   return state.live && !state.live.endedAt
     ? { ...state, live: { ...state.live, endedAt: now } }
     : state;
+}
+
+export function canCancel(order: Order): boolean {
+  return order.status === "pendiente" || order.status === "pagado" || order.status === "empacado";
 }

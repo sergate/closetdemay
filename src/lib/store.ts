@@ -1,14 +1,25 @@
+import { advanceOrders, saveCustomer } from "./fulfillment";
 import {
   adjustStock,
   cancelOrder,
   deleteProduct,
   emptyState,
   endLive,
+  migrateState,
   placeOrder,
   saveProduct,
   startLive,
 } from "./orders";
-import type { Order, OrderInput, ProductInput, Result, State } from "./types";
+import type {
+  Customer,
+  Order,
+  OrderInput,
+  ProductInput,
+  Result,
+  Settings,
+  State,
+  Transition,
+} from "./types";
 
 export interface Store {
   /** "local" guarda en este navegador; "supabase" comparte entre dispositivos. */
@@ -22,6 +33,9 @@ export interface Store {
   saveProduct(input: ProductInput): Promise<Result<void>>;
   deleteProduct(productId: string): Promise<Result<void>>;
   adjustStock(productId: string, size: string, delta: number): Promise<Result<void>>;
+  advanceOrders(orderIds: string[], transition: Transition): Promise<Result<void>>;
+  saveCustomer(customer: Customer): Promise<Result<void>>;
+  saveSettings(settings: Settings): Promise<Result<void>>;
 }
 
 const STORAGE_KEY = "closetdemay:v1";
@@ -33,7 +47,7 @@ const now = () => new Date().toISOString();
 function read(): State {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as State) : emptyState();
+    return raw ? migrateState(JSON.parse(raw)) : emptyState();
   } catch {
     return emptyState();
   }
@@ -99,6 +113,22 @@ export function createLocalStore(): Store {
     },
     async adjustStock(productId, size, delta) {
       commit(adjustStock(read(), productId, size, delta));
+      return ok;
+    },
+    async advanceOrders(orderIds, transition) {
+      const res = advanceOrders(read(), orderIds, transition, now());
+      if (!res.ok) return res;
+      commit(res.value);
+      return ok;
+    },
+    async saveCustomer(customer) {
+      const res = saveCustomer(read(), customer);
+      if (!res.ok) return res;
+      commit(res.value);
+      return ok;
+    },
+    async saveSettings(settings) {
+      commit({ ...read(), settings });
       return ok;
     },
   };
