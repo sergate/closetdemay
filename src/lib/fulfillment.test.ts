@@ -93,6 +93,12 @@ describe("clientas y WhatsApp", () => {
     expect(whatsappNumber("+593 99 123 4567")).toBe("593991234567");
     expect(whatsappNumber("991234567")).toBe("593991234567");
     expect(whatsappNumber("12345")).toBeNull();
+    // Otros países: con "+" o "00" se respeta el código de país.
+    expect(whatsappNumber("+54 9 11 1234-5678")).toBe("5491112345678");
+    expect(whatsappNumber("0054 9 11 1234 5678")).toBe("5491112345678");
+    expect(whatsappNumber("+593 99 123 4567")).toBe("593991234567");
+    expect(whatsappNumber("+54")).toBeNull();
+    expect(whatsappNumber("+0 11 1234 5678")).toBeNull();
     expect(whatsappNumber("")).toBeNull();
   });
 

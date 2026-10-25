@@ -32,7 +32,7 @@ export function CustomerForm({ handle, onDone }: { handle: string; onDone?: () =
         </label>
         <label className="col-span-2 flex flex-col gap-1.5 text-sm font-semibold sm:col-span-1">
           WhatsApp
-          <input className="field" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="099 123 4567" />
+          <input className="field" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="099 123 4567 o +54 9 11 1234 5678" />
         </label>
         <label className="col-span-2 flex flex-col gap-1.5 text-sm font-semibold sm:col-span-1">
           Ciudad

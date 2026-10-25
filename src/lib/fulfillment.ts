@@ -101,9 +101,18 @@ export function groupByCustomer(orders: Order[]): CustomerGroup[] {
   }));
 }
 
-/** Número de Ecuador para wa.me (593 + 9 dígitos), o null si no es válido. */
+/**
+ * Número para wa.me, o null si no es válido.
+ * Sin prefijo se asume Ecuador (593 + 9 dígitos). Con "+" o "00" se acepta cualquier país
+ * (por ejemplo +54 9 11 1234 5678 para Argentina), de 8 a 15 dígitos.
+ */
 export function whatsappNumber(phone: string): string | null {
-  const digits = phone.replace(/\D/g, "");
+  const trimmed = phone.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  if (trimmed.startsWith("+") || trimmed.startsWith("00")) {
+    const international = trimmed.startsWith("+") ? digits : digits.slice(2);
+    return /^[1-9]\d{7,14}$/.test(international) ? international : null;
+  }
   let full: string;
   if (digits.startsWith("593")) full = digits;
   else if (digits.startsWith("0")) full = `593${digits.slice(1)}`;

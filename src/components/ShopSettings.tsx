@@ -25,11 +25,11 @@ export function ShopSettings() {
             inputMode="tel"
             value={whatsapp}
             onChange={(e) => { setWhatsapp(e.target.value); setSaved(false); }}
-            placeholder="099 123 4567"
+            placeholder="099 123 4567 o +54 9 11 1234 5678"
           />
         </label>
         {whatsapp.trim() !== "" && !whatsappNumber(whatsapp) && (
-          <p className="text-sm text-warn">Ese número no parece válido. Debe ser un celular de Ecuador, por ejemplo 099 123 4567.</p>
+          <p className="text-sm text-warn">Ese número no parece válido. Para Ecuador escribe 099 123 4567. Para otro país escríbelo con + y el código de país, por ejemplo +54 9 11 1234 5678.</p>
         )}
         <div className="flex items-center gap-3">
           <button
