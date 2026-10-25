@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Logo } from "./Logo";
 import { useApp } from "./StoreProvider";
 
 const LINKS = [
@@ -25,9 +26,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="hidden w-60 shrink-0 flex-col gap-5 border-r border-line bg-white p-4 md:flex print:hidden">
-        <div className="text-lg font-bold leading-tight text-acc">
-          El Closet de May
-          <small className="block text-xs font-medium text-mut">Panel de ventas</small>
+        <div className="flex items-center gap-3 text-lg font-bold leading-tight text-acc">
+          <Logo size={56} />
+          <span>
+            El Closet de May
+            <small className="block text-xs font-medium text-mut">Panel de ventas</small>
+          </span>
         </div>
         <nav aria-label="Principal" className="flex flex-col gap-1">
           {LINKS.map((l) => {
@@ -58,7 +62,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <header className="flex items-center justify-between border-b border-line bg-white px-4 py-3 md:hidden print:hidden">
-        <span className="font-bold text-acc">El Closet de May</span>
+        <span className="flex items-center gap-2.5 font-bold text-acc">
+          <Logo size={36} />
+          El Closet de May
+        </span>
         {store.kind === "local" && <span className="pill bg-warn-soft text-warn">Prueba</span>}
       </header>
 

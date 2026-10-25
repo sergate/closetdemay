@@ -2,6 +2,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { useState } from "react";
+import { Logo } from "./Logo";
 
 export function Login({ db }: { db: SupabaseClient }) {
   const [email, setEmail] = useState("");
@@ -21,6 +22,7 @@ export function Login({ db }: { db: SupabaseClient }) {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-6">
+      <Logo size={96} />
       <h1 className="text-2xl font-bold text-acc">El Closet de May</h1>
       {sent ? (
         <p>Te enviamos un enlace a <b>{email}</b>. Ábrelo desde este mismo dispositivo para entrar.</p>

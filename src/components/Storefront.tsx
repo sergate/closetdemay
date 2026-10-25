@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { money } from "@/lib/format";
+import { Logo } from "./Logo";
 import { loadPublicCatalog } from "@/lib/publicCatalog";
 import { availableSizes, matchesSearch, orderLink, type PublicCatalog, type PublicProduct } from "@/lib/storefront";
 
@@ -24,7 +25,10 @@ export function Storefront() {
     <>
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-4">
-          <h1 className="text-xl font-bold text-acc">El Closet de May</h1>
+          <h1 className="flex items-center gap-3 text-xl font-bold text-acc">
+            <Logo size={48} />
+            El Closet de May
+          </h1>
           {catalog?.liveSchedule && (
             <p className="rounded-xl bg-acc-soft px-3 py-2 text-sm">
               <b className="text-acc">Próximo live:</b> {catalog.liveSchedule}
