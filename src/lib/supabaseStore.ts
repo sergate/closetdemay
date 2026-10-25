@@ -8,6 +8,7 @@ import type {
   Live,
   Order,
   OrderInput,
+  PaymentAccount,
   PaymentMethod,
   Product,
   Result,
@@ -45,6 +46,7 @@ type CustomerRow = {
 };
 
 type SettingsRow = {
+  payment_accounts: PaymentAccount[] | null;
   payment_instructions: string;
   whatsapp: string;
   live_schedule: string;
@@ -103,6 +105,7 @@ const toProduct = (r: ProductRow): Product => ({
 const toLive = (r: LiveRow): Live => ({ id: r.id, startedAt: r.started_at, endedAt: r.ended_at });
 
 const settingsFrom = (row: SettingsRow | null, fallback: Settings): Settings => ({
+  paymentAccounts: row?.payment_accounts ?? fallback.paymentAccounts,
   paymentInstructions: row?.payment_instructions ?? fallback.paymentInstructions,
   whatsapp: row?.whatsapp ?? fallback.whatsapp,
   liveSchedule: row?.live_schedule ?? fallback.liveSchedule,
@@ -121,7 +124,7 @@ export function createSupabaseStore(db: SupabaseClient): Store {
       db.from("orders").select("*").order("number", { ascending: false }).limit(500),
       db.from("lives").select("*").order("started_at", { ascending: false }).limit(30),
       db.from("customers").select("*").order("handle"),
-      db.from("settings").select("payment_instructions, whatsapp, live_schedule, live_notice").eq("id", 1).maybeSingle(),
+      db.from("settings").select("payment_accounts, payment_instructions, whatsapp, live_schedule, live_notice").eq("id", 1).maybeSingle(),
     ]);
     const error = products.error ?? orders.error ?? lives.error ?? customers.error ?? settings.error;
     if (error) throw new Error(error.message);
@@ -241,6 +244,7 @@ export function createSupabaseStore(db: SupabaseClient): Store {
       return run(
         db.from("settings").upsert({
           id: 1,
+          payment_accounts: settings.paymentAccounts,
           payment_instructions: settings.paymentInstructions,
           whatsapp: settings.whatsapp,
           live_schedule: settings.liveSchedule,

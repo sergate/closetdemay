@@ -57,6 +57,7 @@ create table if not exists customers (
 create table if not exists settings (
   id integer primary key default 1 check (id = 1),
   payment_instructions text not null,
+  payment_accounts jsonb not null default '[]'::jsonb,
   whatsapp text not null default '',
   live_schedule text not null default '',
   live_notice text not null

@@ -58,7 +58,24 @@ export type Customer = {
   wholesale: boolean;
 };
 
+export type AccountType = "ahorros" | "corriente" | "celular";
+
+/** Cuenta donde la dueña quiere recibir el dinero; sale en el mensaje de cobro. */
+export type PaymentAccount = {
+  id: string;
+  /** Banco, cooperativa o app, por ejemplo "Banco Pichincha" o "Deuna". */
+  bank: string;
+  type: AccountType;
+  /** Número de cuenta, o de celular si el tipo es "celular". */
+  number: string;
+  holder: string;
+  /** Cédula o RUC del titular; opcional. */
+  idNumber: string;
+};
+
 export type Settings = {
+  /** Cuentas para recibir pagos; se muestran en cada mensaje de cobro. */
+  paymentAccounts: PaymentAccount[];
   /** Texto que se agrega al final del mensaje de cobro. */
   paymentInstructions: string;
   /** WhatsApp del negocio, al que escriben desde la tienda pública. */
@@ -104,6 +121,12 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: string };
 export type ProductInput = Omit<Product, "id"> & { id?: string };
 
 export const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "Única"] as const;
+
+export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
+  ahorros: "Cuenta de ahorros",
+  corriente: "Cuenta corriente",
+  celular: "Celular (Deuna, Jep u otra app)",
+};
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   pendiente: "Por cobrar",

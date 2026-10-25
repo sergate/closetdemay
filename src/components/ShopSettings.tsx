@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { whatsappNumber } from "@/lib/fulfillment";
+import { PaymentAccountsForm } from "./PaymentAccountsForm";
 import { useApp } from "./StoreProvider";
 
 export function ShopSettings() {
@@ -12,7 +13,8 @@ export function ShopSettings() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
-      <h1 className="text-2xl font-bold">Ajustes de la tienda</h1>
+      <h1 className="text-2xl font-bold">Ajustes</h1>
+      <PaymentAccountsForm />
       <section className="card">
         <h2 className="text-base font-bold">WhatsApp del negocio</h2>
         <p className="text-sm text-mut">

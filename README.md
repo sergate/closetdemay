@@ -24,13 +24,17 @@ Sin variables de entorno la app corre en **modo de prueba**: los datos se guarda
 ## Conectar Supabase (datos compartidos entre celular y escritorio)
 
 1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. En **SQL Editor**, ejecuta el contenido de `supabase/schema.sql` (esquema completo). Si ya habías instalado una fase anterior, ejecuta en cambio, en orden, solo las migraciones que te falten: `supabase/migrations/fase-2.sql` y `supabase/migrations/fase-3.sql`.
+2. En **SQL Editor**, ejecuta el contenido de `supabase/schema.sql` (esquema completo). Si ya habías instalado una fase anterior, ejecuta en cambio, en orden, solo las migraciones que te falten: `supabase/migrations/fase-2.sql`, `fase-3.sql` y `fase-4.sql`.
 3. En **Authentication > Sign In / Providers**, en la sección **User Signups**, desactiva **Allow new users to sign up**. Así solo entran quienes tú crees.
 4. En **Authentication > Users > Add user > Create new user**, crea a cada persona que usará el panel. La app solo deja entrar a usuarios que ya existen.
 5. En **Authentication > URL Configuration**, agrega la URL de la app (y `http://localhost:3000` para pruebas) en las URLs de redirección.
 6. Copia `.env.example` a `.env.local` y pega la URL y la `anon` key del proyecto (**Project Settings > API**). Nunca subas llaves `service_role` al repositorio.
 
 El inicio de sesión es por enlace al correo, sin contraseña.
+
+## Datos de pago
+
+En **Ajustes → Datos para recibir pagos** se cargan una o varias cuentas (banco o app, tipo, número, titular y cédula o RUC). Salen automáticamente en cada mensaje de cobro por WhatsApp. Se guardan en la tabla `settings`, que solo ven las personas con sesión iniciada: no están en la tienda pública.
 
 ## Tienda pública y fotos
 

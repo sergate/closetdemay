@@ -6,7 +6,7 @@ const ITEMS = [
   { href: "/reportes", label: "Reportes", hint: "Ventas, prendas y mejores clientas" },
   { href: "/catalogo", label: "Catálogo", hint: "Prendas, fotos y precios" },
   { href: "/inventario", label: "Inventario", hint: "Stock por talla" },
-  { href: "/ajustes", label: "Ajustes", hint: "WhatsApp del negocio y tienda pública" },
+  { href: "/ajustes", label: "Ajustes", hint: "Datos de pago, WhatsApp del negocio y tienda pública" },
 ];
 
 export default function MasPage() {

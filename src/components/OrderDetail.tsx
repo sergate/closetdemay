@@ -33,7 +33,7 @@ export function OrderDetail() {
 
   const customer = findCustomer(state, order.customer);
   const current = STEPS.indexOf(order.status);
-  const message = chargeMessage(customer, order.customer, [order], state.settings.paymentInstructions);
+  const message = chargeMessage(customer, order.customer, [order], state.settings);
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">

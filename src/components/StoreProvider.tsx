@@ -2,7 +2,6 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { emptyState } from "@/lib/orders";
 import { createLocalStore, type Store } from "@/lib/store";
 import { createSupabaseClient, createSupabaseStore } from "@/lib/supabaseStore";
 import type { Result, State } from "@/lib/types";
@@ -31,7 +30,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [db, setDb] = useState<SupabaseClient | null>(null);
   const [store, setStore] = useState<Store | null>(null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  const [state, setState] = useState<State>(emptyState());
+  // null hasta que llegan los datos: los formularios copian sus valores al dibujarse,
+  // y con datos vacíos podrían pisar lo guardado al pulsar "Guardar".
+  const [state, setState] = useState<State | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,12 +63,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!store) return;
+    setState(null);
     void refresh(store);
     return store.subscribe(() => void refresh(store));
   }, [store, refresh]);
 
   const value = useMemo<App | null>(() => {
-    if (!store) return null;
+    if (!store || !state) return null;
     return {
       state,
       store,

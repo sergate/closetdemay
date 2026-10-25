@@ -20,6 +20,7 @@ export function emptyState(): State {
     nextOrderNumber: 1,
     customers: [],
     settings: {
+      paymentAccounts: [],
       paymentInstructions: DEFAULT_PAYMENT_INSTRUCTIONS,
       whatsapp: "",
       liveSchedule: "",

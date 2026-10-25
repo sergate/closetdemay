@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { chargeMessage, findCustomer, groupByCustomer, whatsappNumber, whatsappUrl } from "@/lib/fulfillment";
 import { money } from "@/lib/format";
+import Link from "next/link";
 import { CustomerForm } from "./CustomerForm";
 import { PayForm } from "./PayForm";
 import { useApp } from "./StoreProvider";
@@ -24,9 +25,19 @@ export function Collections() {
         <p className="text-sm text-mut">Por cobrar: <b className="text-ink">{money(pendingTotal)}</b></p>
       </div>
 
+      {state.settings.paymentAccounts.length === 0 && (
+        <p role="note" className="rounded-xl bg-warn-soft p-3 text-sm text-warn">
+          Todavía no cargaste tus datos de cuenta, así que los mensajes de cobro no dicen dónde pagar.{" "}
+          <Link className="font-bold underline" href="/ajustes">Cárgalos en Ajustes</Link>.
+        </p>
+      )}
+
       <section className="card">
         <h2 className="text-base font-bold">Mensaje de cobro</h2>
-        <p className="text-sm text-mut">Este texto se agrega al final de cada mensaje. Puedes poner tus datos de pago.</p>
+        <p className="text-sm text-mut">
+          Las cuentas de <Link className="font-semibold text-acc underline" href="/ajustes">Ajustes</Link> se agregan solas
+          antes de este texto. Aquí puedes dejar una nota final, como pedir el comprobante.
+        </p>
         <label className="flex flex-col gap-1.5 text-sm font-semibold">
           Instrucciones de pago
           <textarea
@@ -59,7 +70,7 @@ export function Collections() {
       ) : (
         groups.map((g) => {
           const customer = findCustomer(state, g.handle);
-          const message = chargeMessage(customer, g.handle, g.orders, state.settings.paymentInstructions);
+          const message = chargeMessage(customer, g.handle, g.orders, state.settings);
           const hasPhone = Boolean(customer && whatsappNumber(customer.phone));
           return (
             <section key={g.handle} className="card" aria-label={`Cobro de ${g.handle}`}>

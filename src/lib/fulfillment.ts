@@ -1,5 +1,5 @@
 import { normalizeCustomer, orderTotal } from "./orders";
-import type { Customer, Order, OrderStatus, Result, State, Transition } from "./types";
+import type { Customer, Order, OrderStatus, PaymentAccount, Result, Settings, State, Transition } from "./types";
 
 const FROM: Record<Transition["to"], OrderStatus> = {
   pagado: "pendiente",
@@ -120,24 +120,62 @@ export function whatsappNumber(phone: string): string | null {
   return /^593\d{9}$/.test(full) ? full : null;
 }
 
+const ACCOUNT_KIND: Record<PaymentAccount["type"], string> = {
+  ahorros: "cuenta de ahorros",
+  corriente: "cuenta corriente",
+  celular: "celular",
+};
+
+/** Mensaje de error si la cuenta está incompleta; null si se puede guardar. */
+export function validateAccount(a: PaymentAccount): string | null {
+  const label = a.bank.trim() || "una de las cuentas";
+  if (!a.bank.trim()) return "Falta el banco o la app en una de las cuentas.";
+  if (!a.number.trim()) return `Falta el número en ${label}.`;
+  if (!a.holder.trim()) return `Falta el nombre del titular en ${label}.`;
+  if (a.type === "celular" && !/^[+\d][\d\s-]{6,}$/.test(a.number.trim())) {
+    return `El celular de ${label} solo puede tener números.`;
+  }
+  return null;
+}
+
+/** Bloque de texto con los datos para transferir; vacío si no hay cuentas. */
+export function paymentBlock(accounts: PaymentAccount[]): string {
+  if (accounts.length === 0) return "";
+  const blocks = accounts.map((a) =>
+    [
+      `*${a.bank.trim()}* · ${ACCOUNT_KIND[a.type]}`,
+      `${a.type === "celular" ? "Celular" : "N°"}: ${a.number.trim()}`,
+      `Titular: ${a.holder.trim()}`,
+      a.idNumber.trim() ? `C.I./RUC: ${a.idNumber.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+  const title = accounts.length === 1 ? "*Datos para transferir:*" : "*Datos para transferir (elige una cuenta):*";
+  return [title, blocks.join("\n\n")].join("\n");
+}
+
 export function chargeMessage(
   customer: Customer | undefined,
   handle: string,
   orders: Order[],
-  instructions: string,
+  settings: Pick<Settings, "paymentAccounts" | "paymentInstructions">,
 ): string {
   const first = customer?.name.split(/\s+/)[0] || handle;
   const lines = orders.map(
     (o) => `- ${o.code} ${o.productName} · talla ${o.size} × ${o.qty}: $${orderTotal(o).toFixed(2)}`,
   );
   const total = orders.reduce((sum, o) => sum + orderTotal(o), 0);
-  return [
-    `Hola ${first}, gracias por tu compra en El Closet de May. Esto es lo que separamos para ti:`,
-    ...lines,
-    `Total: $${total.toFixed(2)}`,
-    "",
-    instructions.trim(),
-  ].join("\n");
+  const parts = [
+    [
+      `Hola ${first}, gracias por tu compra en El Closet de May. Esto es lo que separamos para ti:`,
+      ...lines,
+      `Total: $${total.toFixed(2)}`,
+    ].join("\n"),
+    paymentBlock(settings.paymentAccounts),
+    settings.paymentInstructions.trim(),
+  ];
+  return parts.filter(Boolean).join("\n\n");
 }
 
 /** Enlace de WhatsApp con el mensaje armado; sin teléfono válido abre el chat para elegir contacto. */

@@ -115,7 +115,7 @@ describe("clientas y WhatsApp", () => {
     const karla = groups.find((g) => g.handle === "@karla")!;
     expect(karla.orders.map((o) => o.number)).toEqual([1, 2]);
     expect(karla.total).toBe(36);
-    const msg = chargeMessage(undefined, "@karla", karla.orders, "Paga por Deuna.");
+    const msg = chargeMessage(undefined, "@karla", karla.orders, { paymentAccounts: [], paymentInstructions: "Paga por Deuna." });
     expect(msg).toContain("Hola @karla");
     expect(msg).toContain("Total: $36.00");
     expect(msg.endsWith("Paga por Deuna.")).toBe(true);
