@@ -11,12 +11,13 @@ export function CustomerForm({ handle, onDone }: { handle: string; onDone?: () =
   const [phone, setPhone] = useState(current?.phone ?? "");
   const [city, setCity] = useState(current?.city ?? "");
   const [address, setAddress] = useState(current?.address ?? "");
+  const [wholesale, setWholesale] = useState(current?.wholesale ?? false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const err = await run(store.saveCustomer({ handle, name, phone, city, address }));
+    const err = await run(store.saveCustomer({ handle, name, phone, city, address, wholesale }));
     setError(err);
     setSaved(!err);
     if (!err) onDone?.();
@@ -42,6 +43,10 @@ export function CustomerForm({ handle, onDone }: { handle: string; onDone?: () =
           <input className="field" value={address} onChange={(e) => setAddress(e.target.value)} />
         </label>
       </div>
+      <label className="flex min-h-11 items-center gap-2 text-sm font-semibold">
+        <input type="checkbox" className="size-5 accent-acc" checked={wholesale} onChange={(e) => setWholesale(e.target.checked)} />
+        Compra por mayor (se le aplica el precio mayorista)
+      </label>
       <div className="flex items-center gap-3">
         <button className="btn" type="submit">Guardar datos</button>
         {saved && <span role="status" className="text-sm text-ok">Guardado</span>}

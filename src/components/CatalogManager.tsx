@@ -41,12 +41,24 @@ export function CatalogManager() {
         <ul className="grid gap-3 sm:grid-cols-2">
           {state.products.map((p) => (
             <li key={p.id} className="card">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
+              <div className="flex items-start gap-3">
+                {p.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.image} alt={`Foto de ${p.name}`} className="size-16 shrink-0 rounded-lg object-cover" />
+                )}
+                <div className="min-w-0 flex-1">
                   <b className="block">{p.code}</b>
                   <span className="text-sm text-mut">{p.name}</span>
                 </div>
                 <b>{money(p.price)}</b>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {!p.published && <span className="pill bg-[#ece6e9] text-mut">Oculta en la tienda</span>}
+                {p.wholesalePrice !== null && (
+                  <span className="pill bg-info-soft text-info">
+                    Mayor: {money(p.wholesalePrice)} desde {p.wholesaleMin}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-mut">
                 {p.sizes.map((s) => `${s.size}: ${s.stock}`).join(" · ")}

@@ -36,6 +36,8 @@ export interface Store {
   advanceOrders(orderIds: string[], transition: Transition): Promise<Result<void>>;
   saveCustomer(customer: Customer): Promise<Result<void>>;
   saveSettings(settings: Settings): Promise<Result<void>>;
+  /** Sube una foto y devuelve el valor para guardar en `Product.image`. */
+  uploadImage(file: Blob): Promise<Result<string>>;
 }
 
 const STORAGE_KEY = "closetdemay:v1";
@@ -44,7 +46,7 @@ const ok: Result<void> = { ok: true, value: undefined };
 const uid = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 
-function read(): State {
+export function readLocalState(): State {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     return raw ? migrateState(JSON.parse(raw)) : emptyState();
@@ -70,7 +72,7 @@ export function createLocalStore(): Store {
   return {
     kind: "local",
     async load() {
-      return read();
+      return readLocalState();
     },
     subscribe(onChange) {
       listeners.add(onChange);
@@ -82,54 +84,62 @@ export function createLocalStore(): Store {
       };
     },
     async startLive() {
-      commit(startLive(read(), uid(), now()));
+      commit(startLive(readLocalState(), uid(), now()));
       return ok;
     },
     async endLive() {
-      commit(endLive(read(), now()));
+      commit(endLive(readLocalState(), now()));
       return ok;
     },
     async placeOrder(input) {
-      const res = placeOrder(read(), input, uid(), now());
+      const res = placeOrder(readLocalState(), input, uid(), now());
       if (!res.ok) return res;
       commit(res.value.state);
       return { ok: true, value: res.value.order };
     },
     async cancelOrder(orderId) {
-      const res = cancelOrder(read(), orderId);
+      const res = cancelOrder(readLocalState(), orderId);
       if (!res.ok) return res;
       commit(res.value);
       return ok;
     },
     async saveProduct(input) {
-      const res = saveProduct(read(), input, uid());
+      const res = saveProduct(readLocalState(), input, uid());
       if (!res.ok) return res;
       commit(res.value);
       return ok;
     },
     async deleteProduct(productId) {
-      commit(deleteProduct(read(), productId));
+      commit(deleteProduct(readLocalState(), productId));
       return ok;
     },
     async adjustStock(productId, size, delta) {
-      commit(adjustStock(read(), productId, size, delta));
+      commit(adjustStock(readLocalState(), productId, size, delta));
       return ok;
     },
     async advanceOrders(orderIds, transition) {
-      const res = advanceOrders(read(), orderIds, transition, now());
+      const res = advanceOrders(readLocalState(), orderIds, transition, now());
       if (!res.ok) return res;
       commit(res.value);
       return ok;
     },
     async saveCustomer(customer) {
-      const res = saveCustomer(read(), customer);
+      const res = saveCustomer(readLocalState(), customer);
       if (!res.ok) return res;
       commit(res.value);
       return ok;
     },
     async saveSettings(settings) {
-      commit({ ...read(), settings });
+      commit({ ...readLocalState(), settings });
       return ok;
+    },
+    async uploadImage(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ ok: true, value: String(reader.result) });
+        reader.onerror = () => resolve({ ok: false, error: "No se pudo leer la foto." });
+        reader.readAsDataURL(file);
+      });
     },
   };
 }

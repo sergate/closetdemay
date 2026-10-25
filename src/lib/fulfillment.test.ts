@@ -10,13 +10,14 @@ import {
 import { cancelOrder, emptyState, migrateState, placeOrder, saveProduct, startLive } from "./orders";
 import type { State } from "./types";
 
+const EXTRA = { image: "", published: true, wholesalePrice: null, wholesaleMin: 6 };
 const NOW = "2026-10-25T20:00:00.000Z";
 
 function withOrders(): State {
   let state = startLive(emptyState(), "l1", NOW);
   const saved = saveProduct(
     state,
-    { code: "V-014", name: "Vestido floral", price: 18, sizes: [{ size: "M", stock: 10 }] },
+    { code: "V-014", name: "Vestido floral", price: 18, sizes: [{ size: "M", stock: 10 }], ...EXTRA },
     "p1",
   );
   if (!saved.ok) throw new Error(saved.error);
@@ -115,14 +116,14 @@ describe("clientas y WhatsApp", () => {
   });
 
   it("guarda y actualiza clientas por usuario", () => {
-    const first = saveCustomer(emptyState(), { handle: "karla", name: " Karla ", phone: "0991234567", city: "Guayaquil", address: "" });
+    const first = saveCustomer(emptyState(), { handle: "karla", name: " Karla ", phone: "0991234567", city: "Guayaquil", address: "", wholesale: false });
     if (!first.ok) throw new Error(first.error);
     expect(first.value.customers[0]).toMatchObject({ handle: "@karla", name: "Karla" });
-    const second = saveCustomer(first.value, { handle: "@karla", name: "Karla P.", phone: "", city: "", address: "" });
+    const second = saveCustomer(first.value, { handle: "@karla", name: "Karla P.", phone: "", city: "", address: "", wholesale: false });
     if (!second.ok) throw new Error(second.error);
     expect(second.value.customers).toHaveLength(1);
     expect(second.value.customers[0].name).toBe("Karla P.");
-    expect(saveCustomer(emptyState(), { handle: " ", name: "", phone: "", city: "", address: "" }).ok).toBe(false);
+    expect(saveCustomer(emptyState(), { handle: " ", name: "", phone: "", city: "", address: "", wholesale: false }).ok).toBe(false);
   });
 });
 

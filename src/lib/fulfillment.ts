@@ -70,6 +70,7 @@ export function saveCustomer(state: State, input: Customer): Result<State> {
     phone: input.phone.trim(),
     city: input.city.trim(),
     address: input.address.trim(),
+    wholesale: input.wholesale,
   };
   const exists = state.customers.some((c) => c.handle === handle);
   return {

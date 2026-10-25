@@ -6,6 +6,14 @@ export type Product = {
   name: string;
   price: number;
   sizes: Size[];
+  /** Foto de la prenda: enlace o imagen incrustada. Vacío si no tiene. */
+  image: string;
+  /** Si aparece en la tienda pública. */
+  published: boolean;
+  /** Precio por mayor; null si no vende por mayor esta prenda. */
+  wholesalePrice: number | null;
+  /** Unidades mínimas para aplicar el precio por mayor. */
+  wholesaleMin: number;
 };
 
 export type OrderStatus =
@@ -46,11 +54,19 @@ export type Customer = {
   phone: string;
   city: string;
   address: string;
+  /** Compra por mayor: se le aplica el precio mayorista. */
+  wholesale: boolean;
 };
 
 export type Settings = {
   /** Texto que se agrega al final del mensaje de cobro. */
   paymentInstructions: string;
+  /** WhatsApp del negocio, al que escriben desde la tienda pública. */
+  whatsapp: string;
+  /** Próximo live, por ejemplo "Jueves 8:00 pm". */
+  liveSchedule: string;
+  /** Mensaje para avisar del live; {nombre} se reemplaza por la clienta. */
+  liveNotice: string;
 };
 
 export type Transition =
@@ -69,6 +85,8 @@ export type State = {
   products: Product[];
   orders: Order[];
   live: Live | null;
+  /** Historial de lives, del más reciente al más antiguo. */
+  lives: Live[];
   nextOrderNumber: number;
   customers: Customer[];
   settings: Settings;
@@ -113,3 +131,6 @@ export const COURIER_LABEL: Record<Courier, string> = {
 
 export const DEFAULT_PAYMENT_INSTRUCTIONS =
   "Puedes pagar por transferencia o Deuna. Cuando pagues, envíame el comprobante por aquí.";
+
+export const DEFAULT_LIVE_NOTICE =
+  "Hola {nombre}, te aviso que nuestro próximo live en TikTok es {horario}. Habrá prendas nuevas de El Closet de May. ¡Te espero!";

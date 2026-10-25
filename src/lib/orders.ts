@@ -1,5 +1,6 @@
-import { DEFAULT_PAYMENT_INSTRUCTIONS } from "./types";
+import { DEFAULT_LIVE_NOTICE, DEFAULT_PAYMENT_INSTRUCTIONS } from "./types";
 import type {
+  Customer,
   Order,
   OrderInput,
   Product,
@@ -15,14 +16,24 @@ export function emptyState(): State {
     products: [],
     orders: [],
     live: null,
+    lives: [],
     nextOrderNumber: 1,
     customers: [],
-    settings: { paymentInstructions: DEFAULT_PAYMENT_INSTRUCTIONS },
+    settings: {
+      paymentInstructions: DEFAULT_PAYMENT_INSTRUCTIONS,
+      whatsapp: "",
+      liveSchedule: "",
+      liveNotice: DEFAULT_LIVE_NOTICE,
+    },
   };
 }
 
 /** Completa datos guardados por versiones anteriores (Fase 1). */
-type StoredState = Omit<Partial<State>, "orders"> & { orders?: Partial<Order>[] };
+type StoredState = Omit<Partial<State>, "orders" | "products" | "customers"> & {
+  orders?: Partial<Order>[];
+  products?: Partial<Product>[];
+  customers?: Partial<Customer>[];
+};
 
 export function migrateState(raw: StoredState): State {
   const base = emptyState();
@@ -30,7 +41,11 @@ export function migrateState(raw: StoredState): State {
     ...base,
     ...raw,
     settings: { ...base.settings, ...raw.settings },
-    customers: raw.customers ?? [],
+    lives: raw.lives ?? (raw.live ? [raw.live] : []),
+    products: (raw.products ?? []).map(
+      (p) => ({ image: "", published: true, wholesalePrice: null, wholesaleMin: 6, ...p }) as Product,
+    ),
+    customers: (raw.customers ?? []).map((c) => ({ wholesale: false, ...c }) as Customer),
     orders: (raw.orders ?? []).map(
       (o) =>
         ({
@@ -58,6 +73,13 @@ export function normalizeCustomer(customer: string): string {
 export function findProduct(state: State, code: string): Product | undefined {
   const wanted = normalizeCode(code);
   return state.products.find((p) => p.code === wanted);
+}
+
+/** Precio por unidad: aplica el precio por mayor si la clienta es mayorista y llega al mínimo. */
+export function unitPriceFor(product: Product, customer: string, qty: number, state: State): number {
+  const wholesale = state.customers.find((c) => c.handle === customer)?.wholesale ?? false;
+  const special = product.wholesalePrice;
+  return wholesale && special !== null && qty >= product.wholesaleMin ? special : product.price;
 }
 
 export function placeOrder(
@@ -98,7 +120,7 @@ export function placeOrder(
     size: size.size,
     customer,
     qty: input.qty,
-    unitPrice: product.price,
+    unitPrice: unitPriceFor(product, customer, input.qty, state),
     status: "pendiente",
     createdAt: now,
     paymentMethod: null,
@@ -174,11 +196,27 @@ export function saveProduct(state: State, input: ProductInput, id: string): Resu
     return { ok: false, error: "El stock debe ser un número entero de 0 o más." };
   }
   if (input.sizes.length === 0) return { ok: false, error: "Agrega al menos una talla." };
+  if (input.wholesalePrice !== null && !(input.wholesalePrice >= 0 && input.wholesalePrice <= input.price)) {
+    return { ok: false, error: "El precio por mayor debe ser menor o igual al precio normal." };
+  }
+  if (!Number.isInteger(input.wholesaleMin) || input.wholesaleMin < 2) {
+    return { ok: false, error: "El mínimo por mayor debe ser 2 o más." };
+  }
 
   const clash = state.products.find((p) => p.code === code && p.id !== input.id);
   if (clash) return { ok: false, error: `Ya existe una prenda con código ${code}.` };
 
-  const product: Product = { id: input.id ?? id, code, name, price: input.price, sizes: input.sizes };
+  const product: Product = {
+    id: input.id ?? id,
+    code,
+    name,
+    price: input.price,
+    sizes: input.sizes,
+    image: input.image,
+    published: input.published,
+    wholesalePrice: input.wholesalePrice,
+    wholesaleMin: input.wholesaleMin,
+  };
   const exists = state.products.some((p) => p.id === product.id);
   return {
     ok: true,
@@ -242,15 +280,15 @@ export function sumOrders(orders: Order[]): number {
 }
 
 export function startLive(state: State, id: string, now: string): State {
-  return state.live && !state.live.endedAt
-    ? state
-    : { ...state, live: { id, startedAt: now, endedAt: null } };
+  if (state.live && !state.live.endedAt) return state;
+  const live = { id, startedAt: now, endedAt: null };
+  return { ...state, live, lives: [live, ...state.lives] };
 }
 
 export function endLive(state: State, now: string): State {
-  return state.live && !state.live.endedAt
-    ? { ...state, live: { ...state.live, endedAt: now } }
-    : state;
+  if (!state.live || state.live.endedAt) return state;
+  const live = { ...state.live, endedAt: now };
+  return { ...state, live, lives: state.lives.map((l) => (l.id === live.id ? live : l)) };
 }
 
 export function canCancel(order: Order): boolean {

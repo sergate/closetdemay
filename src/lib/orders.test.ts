@@ -14,12 +14,13 @@ import {
 } from "./orders";
 import type { State } from "./types";
 
+const EXTRA = { image: "", published: true, wholesalePrice: null, wholesaleMin: 6 };
 const NOW = "2026-10-25T20:00:00.000Z";
 
 function withProduct(): State {
   const saved = saveProduct(
     emptyState(),
-    { code: "v-014", name: "Vestido floral", price: 18, sizes: [{ size: "M", stock: 2 }, { size: "S", stock: 5 }] },
+    { code: "v-014", name: "Vestido floral", price: 18, sizes: [{ size: "M", stock: 2 }, { size: "S", stock: 5 }], ...EXTRA },
     "p1",
   );
   if (!saved.ok) throw new Error(saved.error);
@@ -80,7 +81,7 @@ describe("cancelOrder", () => {
 
 describe("saveProduct", () => {
   it("no permite códigos repetidos", () => {
-    const res = saveProduct(withProduct(), { code: "V-014", name: "Otro", price: 5, sizes: [{ size: "S", stock: 1 }] }, "p2");
+    const res = saveProduct(withProduct(), { code: "V-014", name: "Otro", price: 5, sizes: [{ size: "S", stock: 1 }], ...EXTRA }, "p2");
     expect(res.ok).toBe(false);
   });
 });

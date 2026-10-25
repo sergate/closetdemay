@@ -5,13 +5,18 @@ import { usePathname } from "next/navigation";
 import { useApp } from "./StoreProvider";
 
 const LINKS = [
-  { href: "/vivo", label: "En vivo" },
-  { href: "/pedidos", label: "Pedidos" },
-  { href: "/cobros", label: "Cobros" },
-  { href: "/despachos", label: "Despachos" },
-  { href: "/catalogo", label: "Catálogo" },
-  { href: "/inventario", label: "Inventario" },
+  { href: "/vivo", label: "En vivo", primary: true },
+  { href: "/pedidos", label: "Pedidos", primary: true },
+  { href: "/cobros", label: "Cobros", primary: true },
+  { href: "/despachos", label: "Despachos", primary: true },
+  { href: "/clientas", label: "Clientas", primary: false },
+  { href: "/reportes", label: "Reportes", primary: false },
+  { href: "/catalogo", label: "Catálogo", primary: false },
+  { href: "/inventario", label: "Inventario", primary: false },
+  { href: "/ajustes", label: "Ajustes", primary: false },
 ];
+
+const MOBILE_LINKS = [...LINKS.filter((l) => l.primary), { href: "/mas", label: "Más", primary: false }];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,6 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="mt-auto flex flex-col gap-2 text-xs text-mut">
+          <a className="btn" href="/tienda" target="_blank" rel="noopener noreferrer">Ver la tienda</a>
           {store.kind === "local" && (
             <p>Modo de prueba: los datos se guardan solo en este navegador.</p>
           )}
@@ -62,14 +68,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         aria-label="Secciones"
         className="fixed inset-x-0 bottom-0 flex border-t border-line bg-white md:hidden print:hidden"
       >
-        {LINKS.map((l) => {
-          const on = pathname.startsWith(l.href);
+        {MOBILE_LINKS.map((l) => {
+          const on =
+            l.href === "/mas"
+              ? pathname.startsWith("/mas") || LINKS.some((x) => !x.primary && pathname.startsWith(x.href))
+              : pathname.startsWith(l.href);
           return (
             <Link
               key={l.href}
               href={l.href}
               aria-current={on ? "page" : undefined}
-              className={`flex min-h-14 flex-1 items-center justify-center px-0.5 text-[11px] font-semibold ${on ? "font-bold text-acc" : "text-mut"}`}
+              className={`flex min-h-14 flex-1 items-center justify-center px-0.5 text-xs font-semibold ${on ? "font-bold text-acc" : "text-mut"}`}
             >
               {l.label}
             </Link>

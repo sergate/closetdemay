@@ -11,6 +11,7 @@ import type {
   PaymentMethod,
   Product,
   Result,
+  Settings,
   State,
   Transition,
 } from "./types";
@@ -34,18 +35,37 @@ type OrderRow = {
   shipped_at: string | null;
 };
 
-type CustomerRow = { handle: string; name: string; phone: string; city: string; address: string };
+type CustomerRow = {
+  handle: string;
+  name: string;
+  phone: string;
+  city: string;
+  address: string;
+  wholesale: boolean;
+};
+
+type SettingsRow = {
+  payment_instructions: string;
+  whatsapp: string;
+  live_schedule: string;
+  live_notice: string;
+};
 
 type ProductRow = {
   id: string;
   code: string;
   name: string;
   price: number | string;
+  image_url: string;
+  published: boolean;
+  wholesale_price: number | string | null;
+  wholesale_min: number;
   product_sizes: { size: string; stock: number }[];
 };
 
 type LiveRow = { id: string; started_at: string; ended_at: string | null };
 
+const BUCKET = "productos";
 const ok: Result<void> = { ok: true, value: undefined };
 const fail = (error: string): Result<never> => ({ ok: false, error });
 
@@ -74,9 +94,20 @@ const toProduct = (r: ProductRow): Product => ({
   name: r.name,
   price: Number(r.price),
   sizes: [...r.product_sizes].sort((a, b) => a.size.localeCompare(b.size)),
+  image: r.image_url,
+  published: r.published,
+  wholesalePrice: r.wholesale_price === null ? null : Number(r.wholesale_price),
+  wholesaleMin: r.wholesale_min,
 });
 
 const toLive = (r: LiveRow): Live => ({ id: r.id, startedAt: r.started_at, endedAt: r.ended_at });
+
+const settingsFrom = (row: SettingsRow | null, fallback: Settings): Settings => ({
+  paymentInstructions: row?.payment_instructions ?? fallback.paymentInstructions,
+  whatsapp: row?.whatsapp ?? fallback.whatsapp,
+  liveSchedule: row?.live_schedule ?? fallback.liveSchedule,
+  liveNotice: row?.live_notice ?? fallback.liveNotice,
+});
 
 export function createSupabaseClient(url: string, anonKey: string): SupabaseClient {
   return createClient(url, anonKey);
@@ -86,11 +117,11 @@ export function createSupabaseClient(url: string, anonKey: string): SupabaseClie
 export function createSupabaseStore(db: SupabaseClient): Store {
   async function load(): Promise<State> {
     const [products, orders, lives, customers, settings] = await Promise.all([
-      db.from("products").select("id, code, name, price, product_sizes(size, stock)").order("code"),
+      db.from("products").select("id, code, name, price, image_url, published, wholesale_price, wholesale_min, product_sizes(size, stock)").order("code"),
       db.from("orders").select("*").order("number", { ascending: false }).limit(500),
-      db.from("lives").select("*").order("started_at", { ascending: false }).limit(1),
+      db.from("lives").select("*").order("started_at", { ascending: false }).limit(30),
       db.from("customers").select("*").order("handle"),
-      db.from("settings").select("payment_instructions").eq("id", 1).maybeSingle(),
+      db.from("settings").select("payment_instructions, whatsapp, live_schedule, live_notice").eq("id", 1).maybeSingle(),
     ]);
     const error = products.error ?? orders.error ?? lives.error ?? customers.error ?? settings.error;
     if (error) throw new Error(error.message);
@@ -100,11 +131,10 @@ export function createSupabaseStore(db: SupabaseClient): Store {
     return {
       ...base,
       customers: ((customers.data ?? []) as CustomerRow[]).map((c): Customer => ({ ...c })),
-      settings: {
-        paymentInstructions: settings.data?.payment_instructions ?? base.settings.paymentInstructions,
-      },
+      settings: settingsFrom(settings.data as SettingsRow | null, base.settings),
       products: ((products.data ?? []) as ProductRow[]).map(toProduct),
       orders: orderRows.map(toOrder),
+      lives: ((lives.data ?? []) as LiveRow[]).map(toLive),
       live: lives.data?.[0] ? toLive(lives.data[0] as LiveRow) : null,
       nextOrderNumber: (orderRows[0]?.number ?? 0) + 1,
     };
@@ -161,7 +191,16 @@ export function createSupabaseStore(db: SupabaseClient): Store {
 
       const up = await db
         .from("products")
-        .upsert({ id: saved.id, code: saved.code, name: saved.name, price: saved.price });
+        .upsert({
+          id: saved.id,
+          code: saved.code,
+          name: saved.name,
+          price: saved.price,
+          image_url: saved.image,
+          published: saved.published,
+          wholesale_price: saved.wholesalePrice,
+          wholesale_min: saved.wholesaleMin,
+        });
       if (up.error) return fail(up.error.message);
 
       const keep = saved.sizes.map((s) => s.size);
@@ -200,8 +239,21 @@ export function createSupabaseStore(db: SupabaseClient): Store {
     },
     async saveSettings(settings) {
       return run(
-        db.from("settings").upsert({ id: 1, payment_instructions: settings.paymentInstructions }),
+        db.from("settings").upsert({
+          id: 1,
+          payment_instructions: settings.paymentInstructions,
+          whatsapp: settings.whatsapp,
+          live_schedule: settings.liveSchedule,
+          live_notice: settings.liveNotice,
+        }),
       );
+    },
+    async uploadImage(file) {
+      const ext = file.type === "image/png" ? "png" : "jpg";
+      const path = `${crypto.randomUUID()}.${ext}`;
+      const { error } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type });
+      if (error) return fail(error.message);
+      return { ok: true, value: db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl };
     },
   };
 }

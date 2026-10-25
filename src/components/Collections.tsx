@@ -42,7 +42,7 @@ export function Collections() {
           <button
             className="btn"
             onClick={async () => {
-              const err = await run(store.saveSettings({ paymentInstructions: text }));
+              const err = await run(store.saveSettings({ ...state.settings, paymentInstructions: text }));
               setError(err);
               setSaved(!err);
             }}

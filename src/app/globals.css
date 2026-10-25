@@ -23,10 +23,13 @@ body {
 }
 
 .btn {
-  @apply inline-flex min-h-11 items-center justify-center rounded-[10px] border border-line bg-white px-4 font-semibold text-ink hover:bg-acc-soft disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex min-h-11 items-center justify-center py-2 text-center leading-tight rounded-[10px] border border-line bg-white px-4 font-semibold text-ink hover:bg-acc-soft disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-p {
   @apply border-acc bg-acc text-white hover:bg-acc/90;
+}
+.btn-ok {
+  @apply border-ok bg-ok text-white hover:bg-ok/90;
 }
 .field {
   @apply min-h-11 w-full rounded-[10px] border border-[#cdbfc5] bg-white px-3 text-ink;
